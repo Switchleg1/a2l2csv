@@ -1,6 +1,7 @@
 import lib.Constants as Constants
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QRadioButton, QLineEdit, QLabel, QTableWidget, QTableWidgetItem, QAbstractItemView
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QRadioButton, QLineEdit, QLabel, QTableWidget, QTableWidgetItem, QAbstractItemView, QButtonGroup
 from lib.SearchThread import SearchThread
+from lib.SearchThread import SearchPosition
 from lib.SearchThread import SearchType
 
 
@@ -25,6 +26,26 @@ class TABSearch(QWidget):
         
         self.mainLayoutBox.addLayout(self.searchLayoutBox)
 
+        #Position radio
+        self.positionLayoutBox = QHBoxLayout()
+        self.startRadioButton = QRadioButton("Starts with")
+        self.positionLayoutBox.addWidget(self.startRadioButton)
+
+        self.containRadioButton = QRadioButton("Contains")
+        self.containRadioButton.setChecked(True)
+        self.positionLayoutBox.addWidget(self.containRadioButton)
+
+        self.endRadioButton = QRadioButton("Ends with")
+        self.positionLayoutBox.addWidget(self.endRadioButton)
+
+        self.typeGroup = QButtonGroup()
+        self.typeGroup.addButton(self.startRadioButton)
+        self.typeGroup.addButton(self.containRadioButton)
+        self.typeGroup.addButton(self.endRadioButton)
+
+        self.mainLayoutBox.addLayout(self.positionLayoutBox)
+
+        #Type radio
         self.typeLayoutBox = QHBoxLayout()
         self.nameRadioButton = QRadioButton("Name")
         self.nameRadioButton.setChecked(True)
@@ -36,8 +57,14 @@ class TABSearch(QWidget):
         self.addressRadioButton = QRadioButton("Address")
         self.typeLayoutBox.addWidget(self.addressRadioButton)
 
+        self.typeGroup = QButtonGroup()
+        self.typeGroup.addButton(self.nameRadioButton)
+        self.typeGroup.addButton(self.descriptionRadioButton)
+        self.typeGroup.addButton(self.addressRadioButton)
+
         self.mainLayoutBox.addLayout(self.typeLayoutBox)
 
+        #Search button
         self.searchPushButton = QPushButton("Search")
         self.searchPushButton.setFixedHeight(50)
         self.searchPushButton.pressed.connect(self.SearchButtonClick)
@@ -71,6 +98,16 @@ class TABSearch(QWidget):
         else:
             self.itemsTable.setRowCount(0)
             self.searchPushButton.setText("Cancel")
+
+            #set search position
+            if self.startRadioButton.isChecked():
+                self.searchThread.search_position   = SearchPosition.START
+
+            elif self.containRadioButton.isChecked():
+                self.searchThread.search_position   = SearchPosition.CONTAIN
+
+            else:
+                self.searchThread.search_position   = SearchPosition.END
 
             #set search type
             if self.nameRadioButton.isChecked():

@@ -5,6 +5,11 @@ from pya2l import model
 from enum import Enum
 
 
+class SearchPosition(Enum):
+    START   = 1
+    CONTAIN = 2
+    END     = 3
+
 class SearchType(Enum):
     NAME    = 1
     DESC    = 2
@@ -24,9 +29,10 @@ class SearchThread(QThread):
         self.addItem.connect(addItem)
         self.finished.connect(finished)
 
-        self.a2lsession     = None
-        self.search_string  = ""
-        self.search_type    = SearchType.NAME
+        self.a2lsession         = None
+        self.search_string      = ""
+        self.search_position    = SearchPosition.CONTAIN
+        self.search_type        = SearchType.NAME
 
 
     def run(self):
@@ -36,37 +42,47 @@ class SearchThread(QThread):
             return
 
         try:
+            #get filter type
+            filter_type = None
             if self.search_type == SearchType.NAME:
-                self.logMessage.emit(f"Search name: {self.search_string}")
-                items = (
-                    self.a2lsession.query(model.Measurement)
-                        .order_by(model.Measurement.name)
-                        .filter(model.Measurement.name.contains(self.search_string))
-                        .all()
-                )
+                if self.search_position == SearchPosition.START:
+                    filter_type = model.Measurement.name.istartswith(self.search_string)
+
+                elif self.search_position == SearchPosition.CONTAIN:
+                    filter_type = model.Measurement.name.icontains(self.search_string)
+
+                else:
+                    filter_type = model.Measurement.name.iendswith(self.search_string)
 
             elif self.search_type == SearchType.DESC:
-                self.logMessage.emit(f"Search description: {self.search_string}")
-                items = (
-                    self.a2lsession.query(model.Measurement)
-                        .order_by(model.Measurement.name)
-                        .filter(model.Measurement.longIdentifier.contains(self.search_string))
-                        .all()
-                )
+                if self.search_position == SearchPosition.START:
+                    filter_type = model.Measurement.longIdentifier.istartswith(self.search_string)
+
+                elif self.search_position == SearchPosition.CONTAIN:
+                    filter_type = model.Measurement.longIdentifier.icontains(self.search_string)
+
+                else:
+                    filter_type = model.Measurement.longIdentifier.iendswith(self.search_string)
 
             elif self.search_type == SearchType.ADDR:
                 self.search_string = self.search_string.lower()
-                self.logMessage.emit(f"Search address: {self.search_string}")
-                items = (
-                    self.a2lsession.query(model.Measurement)
-                        .order_by(model.Measurement.name)
-                        .all()
-                )
+                search_long = int(self.search_string, 16)
+                filter_type = model.Measurement.name.contains("")
 
             else:
                 self.logMessage.emit("Search: invalid search type")
                 self.finished.emit()
                 return
+
+            self.logMessage.emit(f"Search {self.filter_type_string()} that {self.filter_position_string()} - {self.search_string}")
+
+            #find items that match this description
+            items = (
+                self.a2lsession.query(model.Measurement)
+                    .order_by(model.Measurement.name)
+                    .filter(filter_type)
+                    .all()
+            )
 
             item_count = 0
             for item in items:
@@ -75,8 +91,15 @@ class SearchThread(QThread):
                     continue
 
                 #if searching by address we need to complete the filtering here
-                if self.search_type == SearchType.ADDR and self.search_string not in hex(item.ecu_address.address):
-                    continue
+                if self.search_type == SearchType.ADDR:
+                    if self.search_position == SearchPosition.START and item.ecu_address.address < search_long:
+                        continue
+
+                    elif self.search_position == SearchPosition.CONTAIN and item.ecu_address.address != search_long:
+                        continue
+
+                    elif  item.ecu_address.address > search_long:
+                        continue
 
                 compuMethod = self.a2lsession.query(model.CompuMethod).order_by(model.CompuMethod.name).filter(model.CompuMethod.name == item.conversion).first()
                 self.addItem.emit({
@@ -137,3 +160,25 @@ class SearchThread(QThread):
             return operation
         else:
             return "x"
+
+
+    def filter_position_string(self):
+        if self.search_position == SearchPosition.START:
+            return "starts with"
+
+        elif self.search_position == SearchPosition.CONTAIN:
+            return "contains"
+
+        else:
+            return "ends with"
+
+
+    def filter_type_string(self):
+        if self.search_type == SearchType.NAME:
+            return "name"
+
+        elif self.search_type == SearchType.DESC:
+            return "description"
+
+        else:
+            return "address"
