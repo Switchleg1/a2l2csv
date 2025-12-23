@@ -39,7 +39,7 @@ class TABA2L(QWidget):
 
 
     def FindButtonClick(self):
-        a2lFileName = QFileDialog.getOpenFileName(self, "Open A2L", "", "A2L (*.a2l;*.a2ldb)",)
+        a2lFileName = QFileDialog.getOpenFileName(self, "Open A2L", "", "A2L (*.a2l *.a2ldb)",)
         self.fileEditBox.setText(a2lFileName[0])
 
 
