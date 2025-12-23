@@ -22,10 +22,10 @@ class MainWindow(QMainWindow):
         #tabs
         self.listTab = TABList(self)
 
-        tabs = QTabWidget()
-        tabs.addTab(TABA2L(self), "A2L")
-        tabs.addTab(TABSearch(self), "Search")
-        tabs.addTab(self.listTab, "List")
+        self.tabs = QTabWidget()
+        self.tabs.addTab(TABA2L(self), "A2L")
+        self.tabs.addTab(TABSearch(self), "Search")
+        self.tabs.addTab(self.listTab, "List")
 
         #log box
         self.listViewLog = QListWidget()
@@ -34,7 +34,7 @@ class MainWindow(QMainWindow):
         layoutLog.addWidget(self.listViewLog)
 
         layoutBoxAll = QVBoxLayout()
-        layoutBoxAll.addWidget(tabs)
+        layoutBoxAll.addWidget(self.tabs)
         layoutBoxAll.addLayout(layoutLog)
 
         widget = QWidget()

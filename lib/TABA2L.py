@@ -53,3 +53,7 @@ class TABA2L(QWidget):
         self.parent.a2ldb       = self.loadThread.a2ldb
         self.parent.a2lsession  = self.loadThread.a2lsession
         self.loadPushButton.setEnabled(True)
+        
+        # Switch to Search tab if file loaded successfully
+        if self.parent.a2lsession is not None:
+            self.parent.tabs.setCurrentIndex(1)
