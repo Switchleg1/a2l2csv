@@ -1,0 +1,106 @@
+import lib.Constants as Constants
+from PyQt6.QtCore import Qt, QThread
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QCheckBox, QRadioButton, QFileDialog, QLineEdit, QLabel, QFrame, QTableWidget, QTableWidgetItem, QAbstractItemView
+from pya2l import DB, model
+from pya2l.api import inspect
+from lib.SearchThread import SearchThread
+from lib.SearchThread import SearchType
+
+
+class TABSearch(QWidget):
+    def __init__(self, parent: QWidget):
+        super().__init__(parent)
+        self.parent         = parent
+        self.searchThread   = SearchThread(self.parent.addLogEntry, self.addItemEntry, self.onFinishedSearch)
+
+        #Main layout box
+        self.mainLayoutBox = QVBoxLayout()
+
+        #Search layout box
+        self.searchLayoutBox = QHBoxLayout()
+        self.searchLabel = QLabel("Search")
+        self.searchLabel.setFixedHeight(30)
+        self.searchLayoutBox.addWidget(self.searchLabel)
+
+        self.inputEditBox = QLineEdit()
+        self.inputEditBox.setFixedHeight(30)
+        self.searchLayoutBox.addWidget(self.inputEditBox)
+        
+        self.mainLayoutBox.addLayout(self.searchLayoutBox)
+
+        self.searchPushButton = QPushButton("Search")
+        self.searchPushButton.setFixedHeight(50)
+        self.searchPushButton.pressed.connect(self.SearchButtonClick)
+        self.mainLayoutBox.addWidget(self.searchPushButton)
+
+        #Items table
+        self.itemsTable = QTableWidget()
+        self.itemsTable.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.itemsTable.setColumnCount(len(Constants.SEARCH_DATA_COLUMNS))
+        self.itemsTable.setHorizontalHeaderLabels(Constants.SEARCH_DATA_COLUMNS)
+        for i in range(len(Constants.SEARCH_COLUMN_SIZES)):
+            self.itemsTable.setColumnWidth(i, Constants.SEARCH_COLUMN_SIZES[i])
+
+        self.mainLayoutBox.addWidget(self.itemsTable)
+
+        #Add button
+        self.addPushButton = QPushButton("Add to list")
+        self.addPushButton.setFixedHeight(50)
+        self.addPushButton.pressed.connect(self.AddButtonClick)
+        self.mainLayoutBox.addWidget(self.addPushButton)
+
+        self.setLayout(self.mainLayoutBox)
+
+
+    def SearchButtonClick(self):
+        if self.searchThread.isRunning():
+            self.searchThread.terminate()
+            self.parent.addLogEntry("Cancelled")
+            self.searchPushButton.setText("Start")
+
+        else:
+            self.itemsTable.setRowCount(0)
+            self.searchPushButton.setText("Cancel")
+
+            self.searchThread.search_string = self.inputEditBox.text()
+            self.searchThread.search_type   = SearchType.NAME
+            self.searchThread.a2lsession    = self.parent.a2lsession
+            self.searchThread.start()
+
+
+    def AddButtonClick(self):
+        for i in range(0, len(self.itemsTable.selectedItems()), len(Constants.SEARCH_DATA_COLUMNS)):
+            item = {
+                "Name"          : self.itemsTable.selectedItems()[i].text(),
+                "Unit"          : self.itemsTable.selectedItems()[i + 1].text(),
+                "Equation"      : self.itemsTable.selectedItems()[i + 2].text(),
+                "Format"        : "%01.0f", 
+                "Address"       : self.itemsTable.selectedItems()[i + 3].text(),
+                "Length"        : self.itemsTable.selectedItems()[i + 4].text(),
+                "Signed"        : self.itemsTable.selectedItems()[i + 5].text(),
+                "ProgMin"       : self.itemsTable.selectedItems()[i + 6].text(),
+                "ProgMax"       : self.itemsTable.selectedItems()[i + 7].text(),
+                "WarnMin"       : str(float(self.itemsTable.selectedItems()[i + 6].text()) - 1),
+                "WarnMax"       : str(float(self.itemsTable.selectedItems()[i + 7].text()) + 1),
+                "Smoothing"     : "0",
+                "Enabled"       : "TRUE",
+                "Tabs"          : "",
+                "Assign To"     : ""
+            }
+            self.parent.addListItem(item)
+
+        self.parent.addLogEntry(f"Added {int(len(self.itemsTable.selectedItems()) / len(Constants.SEARCH_DATA_COLUMNS))} items to list")
+
+
+    def onFinishedSearch(self):
+        self.searchPushButton.setText("Start")
+
+
+    def addItemEntry(self, item):
+        #self.parent.addLogEntry(f"Item: {item}")
+        self.itemsTable.setRowCount(self.itemsTable.rowCount() + 1)
+
+        for index, (key, value) in enumerate(item.items()):
+            entryItem = QTableWidgetItem(value)
+            self.itemsTable.setItem(self.itemsTable.rowCount() - 1, index, entryItem)
+            

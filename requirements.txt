@@ -1,0 +1,2 @@
+pya2ldb
+PyQt6
