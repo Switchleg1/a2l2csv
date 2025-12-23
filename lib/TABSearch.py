@@ -23,6 +23,7 @@ class TABSearch(QWidget):
 
         self.inputEditBox = QLineEdit()
         self.inputEditBox.setFixedHeight(30)
+        self.inputEditBox.returnPressed.connect(self.SearchButtonClick)
         self.searchLayoutBox.addWidget(self.inputEditBox)
         
         self.mainLayoutBox.addLayout(self.searchLayoutBox)
