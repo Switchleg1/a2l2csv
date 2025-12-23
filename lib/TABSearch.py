@@ -28,6 +28,19 @@ class TABSearch(QWidget):
         
         self.mainLayoutBox.addLayout(self.searchLayoutBox)
 
+        self.typeLayoutBox = QHBoxLayout()
+        self.nameRadioButton = QRadioButton("Name")
+        self.nameRadioButton.setChecked(True)
+        self.typeLayoutBox.addWidget(self.nameRadioButton)
+
+        self.descriptionRadioButton = QRadioButton("Description")
+        self.typeLayoutBox.addWidget(self.descriptionRadioButton)
+
+        self.addressRadioButton = QRadioButton("Address")
+        self.typeLayoutBox.addWidget(self.addressRadioButton)
+
+        self.mainLayoutBox.addLayout(self.typeLayoutBox)
+
         self.searchPushButton = QPushButton("Search")
         self.searchPushButton.setFixedHeight(50)
         self.searchPushButton.pressed.connect(self.SearchButtonClick)
@@ -62,8 +75,17 @@ class TABSearch(QWidget):
             self.itemsTable.setRowCount(0)
             self.searchPushButton.setText("Cancel")
 
+            #set search type
+            if self.nameRadioButton.isChecked():
+                self.searchThread.search_type   = SearchType.NAME
+
+            elif self.descriptionRadioButton.isChecked():
+                self.searchThread.search_type   = SearchType.DESC
+
+            else:
+                self.searchThread.search_type   = SearchType.ADDR
+
             self.searchThread.search_string = self.inputEditBox.text()
-            self.searchThread.search_type   = SearchType.NAME
             self.searchThread.a2lsession    = self.parent.a2lsession
             self.searchThread.start()
 

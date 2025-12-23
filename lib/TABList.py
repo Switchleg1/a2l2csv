@@ -77,8 +77,8 @@ class TABList(QWidget):
 
                 self.parent.addLogEntry(f"Import successful: {csvFilename[0]}")
 
-        except:
-            self.parent.addLogEntry(f"Import failed: {csvFilename[0]}")
+        except Exception as e:
+            self.parent.addLogEntry(f"Import failed: {csvFilename[0]} - {e}")
 
 
     def ExportButtonClick(self):
@@ -102,8 +102,8 @@ class TABList(QWidget):
                 csvwriter.writerows(data)
                 self.parent.addLogEntry(f"Export successful: {csvFilename[0]}")
 
-        except:
-            self.parent.addLogEntry(f"Export failed: {csvFilename[0]}")
+        except Exception as e:
+            self.parent.addLogEntry(f"Export failed: {csvFilename[0]} - {e}")
 
 
     def RemoveButtonClick(self):

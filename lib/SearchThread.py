@@ -58,7 +58,7 @@ class SearchThread(QThread):
                 items = (
                     self.a2lsession.query(model.Measurement)
                         .order_by(model.Measurement.name)
-                        .filter(model.Measurement.ecu_address.address.contains(self.search_string))
+                        .filter(self.search_string in hex(model.Measurement.ecu_address.address))
                         .all()
                 )
             else:
@@ -83,8 +83,8 @@ class SearchThread(QThread):
 
             self.logMessage.emit(f"Found {len(items)} items")
 
-        except:
-            self.logMessage.emit("Search: error")
+        except Exception as e:
+            self.logMessage.emit(f"Search: error - {e}")
 
         self.finished.emit()
 
