@@ -1,6 +1,4 @@
-from os import path
-from pya2l import DB, model
-from pya2l.api import inspect
+from pya2l import DB
 from sys import argv
 
 if len(argv) != 2:
@@ -12,5 +10,5 @@ A2L_FILENAME     = argv[1]
 
 db = DB()
 session = (
-    db.import_a2l(A2L_FILENAME)
+    db.import_a2l(A2L_FILENAME, encoding = "latin-1")
 )

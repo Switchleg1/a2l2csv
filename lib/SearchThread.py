@@ -1,9 +1,7 @@
 import decimal
 import lib.Constants as Constants
-from ctypes.wintypes import LONG
 from PyQt6.QtCore import QThread, pyqtSignal
-from pya2l import DB, model
-from pya2l.api import inspect
+from pya2l import model
 from enum import Enum
 
 
@@ -37,37 +35,49 @@ class SearchThread(QThread):
             self.finished.emit()
             return
 
-        self.logMessage.emit(f"Search: {self.search_string}")
-
         try:
             if self.search_type == SearchType.NAME:
+                self.logMessage.emit(f"Search name: {self.search_string}")
                 items = (
                     self.a2lsession.query(model.Measurement)
                         .order_by(model.Measurement.name)
                         .filter(model.Measurement.name.contains(self.search_string))
                         .all()
                 )
+
             elif self.search_type == SearchType.DESC:
+                self.logMessage.emit(f"Search description: {self.search_string}")
                 items = (
                     self.a2lsession.query(model.Measurement)
                         .order_by(model.Measurement.name)
                         .filter(model.Measurement.longIdentifier.contains(self.search_string))
                         .all()
                 )
+
             elif self.search_type == SearchType.ADDR:
+                self.search_string = self.search_string.lower()
+                self.logMessage.emit(f"Search address: {self.search_string}")
                 items = (
                     self.a2lsession.query(model.Measurement)
                         .order_by(model.Measurement.name)
-                        .filter(self.search_string in hex(model.Measurement.ecu_address.address))
                         .all()
                 )
+
             else:
                 self.logMessage.emit("Search: invalid search type")
                 self.finished.emit()
                 return
 
+            item_count = 0
             for item in items:
-                #self.logMessage.emit(f"Item: {item.name} {hex(item.ecu_address.address)} {item.longIdentifier}")
+                #if the item has no address ignore it
+                if hasattr(item.ecu_address, 'address') == False:
+                    continue
+
+                #if searching by address we need to complete the filtering here
+                if self.search_type == SearchType.ADDR and self.search_string not in hex(item.ecu_address.address):
+                    continue
+
                 compuMethod = self.a2lsession.query(model.CompuMethod).order_by(model.CompuMethod.name).filter(model.CompuMethod.name == item.conversion).first()
                 self.addItem.emit({
                     "Name"          : item.name,
@@ -81,7 +91,9 @@ class SearchThread(QThread):
                     "Description"   : item.longIdentifier
                 })
 
-            self.logMessage.emit(f"Found {len(items)} items")
+                item_count += 1
+
+            self.logMessage.emit(f"Found {item_count} items")
 
         except Exception as e:
             self.logMessage.emit(f"Search: error - {e}")

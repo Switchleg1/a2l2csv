@@ -1,7 +1,6 @@
 import csv
 import lib.Constants as Constants
-from PyQt6.QtCore import Qt, QThread
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QCheckBox, QRadioButton, QFileDialog, QLineEdit, QLabel, QFrame, QTableWidget, QTableWidgetItem, QAbstractItemView
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QFileDialog, QTableWidget, QTableWidgetItem, QAbstractItemView
 
 
 class TABList(QWidget):

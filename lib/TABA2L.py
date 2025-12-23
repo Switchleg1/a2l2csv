@@ -1,7 +1,4 @@
-from PyQt6.QtCore import Qt, QThread
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QCheckBox, QRadioButton, QFileDialog, QLineEdit, QLabel, QFrame
-from pya2l import DB, model
-from pya2l.api import inspect
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QRadioButton, QFileDialog, QLineEdit, QLabel
 from lib.LoadA2LThread import LoadA2LThread
 
 
