@@ -127,28 +127,48 @@ class TABSearch(QWidget):
 
 
     def AddButtonClick(self):
-        for i in range(0, len(self.itemsTable.selectedItems()), len(Constants.SEARCH_DATA_COLUMNS)):
+        selected_rows = set()
+        for item in self.itemsTable.selectedItems():
+            selected_rows.add(item.row())
+
+        for row in sorted(selected_rows):
+            # Get cell values safely, handling None cells
+            name_item       = self.itemsTable.item(row, 0)
+            unit_item       = self.itemsTable.item(row, 1)
+            equation_item   = self.itemsTable.item(row, 2)
+            address_item    = self.itemsTable.item(row, 3)
+            length_item     = self.itemsTable.item(row, 4)
+            signed_item     = self.itemsTable.item(row, 5)
+            min_item        = self.itemsTable.item(row, 6)
+            max_item        = self.itemsTable.item(row, 7)
+            desc_item       = self.itemsTable.item(row, 8)
+
+            # Skip row if essential fields are missing
+            if not all([name_item, address_item, length_item, signed_item, min_item, max_item]):
+                self.parent.addLogEntry(f"Skipped row {row + 1}: missing required fields")
+                continue
+
             item = {
-                "Name"          : self.itemsTable.selectedItems()[i].text(),
-                "Unit"          : self.itemsTable.selectedItems()[i + 1].text(),
-                "Equation"      : self.itemsTable.selectedItems()[i + 2].text(),
-                "Format"        : "%01.0f", 
-                "Address"       : self.itemsTable.selectedItems()[i + 3].text(),
-                "Length"        : self.itemsTable.selectedItems()[i + 4].text(),
-                "Signed"        : self.itemsTable.selectedItems()[i + 5].text(),
-                "ProgMin"       : self.itemsTable.selectedItems()[i + 6].text(),
-                "ProgMax"       : self.itemsTable.selectedItems()[i + 7].text(),
-                "WarnMin"       : Helpers.float_to_str(float(self.itemsTable.selectedItems()[i + 6].text()) - 1),
-                "WarnMax"       : Helpers.float_to_str(float(self.itemsTable.selectedItems()[i + 7].text()) + 1),
+                "Name"          : name_item.text(),
+                "Unit"          : unit_item.text() if unit_item else "",
+                "Equation"      : equation_item.text() if equation_item else "",
+                "Format"        : "%01.0f",
+                "Address"       : address_item.text(),
+                "Length"        : length_item.text(),
+                "Signed"        : signed_item.text(),
+                "ProgMin"       : min_item.text(),
+                "ProgMax"       : max_item.text(),
+                "WarnMin"       : Helpers.float_to_str(float(min_item.text()) - 1),
+                "WarnMax"       : Helpers.float_to_str(float(max_item.text()) + 1),
                 "Smoothing"     : "0",
                 "Enabled"       : "TRUE",
                 "Tabs"          : "",
                 "Assign To"     : "",
-                "Description"   : self.itemsTable.selectedItems()[i + 8].text()
+                "Description"   : desc_item.text() if desc_item else ""
             }
             self.parent.addListItem(item)
 
-        self.parent.addLogEntry(f"Added {int(len(self.itemsTable.selectedItems()) / len(Constants.SEARCH_DATA_COLUMNS))} items to list")
+        self.parent.addLogEntry(f"Added {len(selected_rows)} items to list")
 
 
     def onFinishedSearch(self):

@@ -67,6 +67,7 @@ class TABList(QWidget):
         try:
             with open(csvFilename[0], "r", newline='') as csvfile:
                 csvreader = csv.DictReader(csvfile)
+
                 for column in Constants.LIST_DATA_COLUMNS_REQUIRED:
                     if column not in csvreader.fieldnames:
                         self.parent.addLogEntry(f"Import failed: {csvFilename[0]} does not contain {column}")
@@ -94,7 +95,8 @@ class TABList(QWidget):
                 for row in range(0, self.itemsTable.rowCount(), 1):
                     dataEntry = {}
                     for i in range(0, self.itemsTable.columnCount(), 1):
-                        dataEntry[Constants.LIST_DATA_COLUMNS[i]] = self.itemsTable.item(row, i).text()
+                        cell = self.itemsTable.item(row, i)
+                        dataEntry[Constants.LIST_DATA_COLUMNS[i]] = cell.text() if cell is not None else ""
 
                     data.append(dataEntry)
 
