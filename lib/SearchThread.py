@@ -88,30 +88,38 @@ class SearchThread(QThread):
 
             # For address searches, use a more efficient approach
             if self.search_type == SearchType.ADDR:
-                # Query all measurements that have an ECU address
-                # We'll filter by address value in the query itself
-                query = (
-                    self.a2lsession.query(model.Measurement)
-                        .join(model.Measurement.ecu_address)
-                        .order_by(model.Measurement.name)
-                )
+                # Use a subquery approach which is much faster on SQLite/macOS
+                # This avoids the expensive join operation
+                from sqlalchemy import select
                 
-                # Apply address filtering at database level
+                # Create subquery to get measurement RIDs with matching addresses
+                # EcuAddress._measurement_rid references Measurement.rid
                 if self.search_position == SearchPosition.START:
                     # "Starts with" for address means >= the search address
-                    items = query.filter(model.Measurement.ecu_address.has(
-                        model.EcuAddress.address >= search_long
-                    )).all()
+                    address_subquery = (
+                        select(model.EcuAddress._measurement_rid)
+                        .where(model.EcuAddress.address >= search_long)
+                    )
                 elif self.search_position == SearchPosition.CONTAIN:
                     # "Contains" for address means exact match
-                    items = query.filter(model.Measurement.ecu_address.has(
-                        model.EcuAddress.address == search_long
-                    )).all()
+                    address_subquery = (
+                        select(model.EcuAddress._measurement_rid)
+                        .where(model.EcuAddress.address == search_long)
+                    )
                 else:
                     # "Ends with" for address means <= the search address
-                    items = query.filter(model.Measurement.ecu_address.has(
-                        model.EcuAddress.address <= search_long
-                    )).all()
+                    address_subquery = (
+                        select(model.EcuAddress._measurement_rid)
+                        .where(model.EcuAddress.address <= search_long)
+                    )
+                
+                # Query measurements using the subquery
+                items = (
+                    self.a2lsession.query(model.Measurement)
+                        .filter(model.Measurement.rid.in_(address_subquery))
+                        .order_by(model.Measurement.name)
+                        .all()
+                )
             else:
                 # For name and description searches, use the original approach
                 items = (

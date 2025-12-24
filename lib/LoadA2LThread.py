@@ -27,6 +27,18 @@ class LoadA2LThread(QThread):
             self.a2lsession = (
                 self.a2ldb.open_existing(self.filename)
             )
+            
+            # Apply SQLite performance optimizations
+            # These pragmas improve query performance on all platforms (Windows, macOS, Linux)
+            try:
+                self.a2lsession.execute("PRAGMA journal_mode=WAL")
+                self.a2lsession.execute("PRAGMA synchronous=NORMAL")
+                self.a2lsession.execute("PRAGMA cache_size=-64000")  # 64MB cache
+                self.a2lsession.execute("PRAGMA temp_store=MEMORY")
+                self.a2lsession.commit()
+            except Exception as e:
+                # If pragmas fail, log but continue - database will still work
+                self.logMessage.emit(f"Note: Could not apply SQLite optimizations: {e}")
 
             self.logMessage.emit("Database loaded")
 
@@ -52,7 +64,7 @@ class LoadA2LThread(QThread):
 
                 self.logMessage.emit(f"Finished")
 
-            except:
-                self.logMessage.emit("Failed to load")
+            except Exception as e:
+                self.logMessage.emit(f"Failed to load: {e}")
 
         self.finished.emit()
