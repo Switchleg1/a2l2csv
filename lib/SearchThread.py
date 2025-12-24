@@ -66,8 +66,15 @@ class SearchThread(QThread):
 
             elif self.search_type == SearchType.ADDR:
                 self.search_string = self.search_string.lower()
-                search_long = int(self.search_string, 16)
-                filter_type = model.Measurement.name.contains("")
+                try:
+                    search_long = int(self.search_string, 16)
+                except ValueError:
+                    self.logMessage.emit(f"Search: invalid hex address - {self.search_string}")
+                    self.finished.emit()
+                    return
+                # For address search, we'll handle filtering differently
+                # Set a dummy filter that matches everything with an address
+                filter_type = None
 
             else:
                 self.logMessage.emit("Search: invalid search type")
@@ -76,13 +83,40 @@ class SearchThread(QThread):
 
             self.logMessage.emit(f"Search {self.filter_type_string()} that {self.filter_position_string()} - {self.search_string}")
 
-            #find items that match this description
-            items = (
-                self.a2lsession.query(model.Measurement)
-                    .order_by(model.Measurement.name)
-                    .filter(filter_type)
-                    .all()
-            )
+            # For address searches, use a more efficient approach
+            if self.search_type == SearchType.ADDR:
+                # Query all measurements that have an ECU address
+                # We'll filter by address value in the query itself
+                query = (
+                    self.a2lsession.query(model.Measurement)
+                        .join(model.Measurement.ecu_address)
+                        .order_by(model.Measurement.name)
+                )
+                
+                # Apply address filtering at database level
+                if self.search_position == SearchPosition.START:
+                    # "Starts with" for address means >= the search address
+                    items = query.filter(model.Measurement.ecu_address.has(
+                        model.EcuAddress.address >= search_long
+                    )).all()
+                elif self.search_position == SearchPosition.CONTAIN:
+                    # "Contains" for address means exact match
+                    items = query.filter(model.Measurement.ecu_address.has(
+                        model.EcuAddress.address == search_long
+                    )).all()
+                else:
+                    # "Ends with" for address means <= the search address
+                    items = query.filter(model.Measurement.ecu_address.has(
+                        model.EcuAddress.address <= search_long
+                    )).all()
+            else:
+                # For name and description searches, use the original approach
+                items = (
+                    self.a2lsession.query(model.Measurement)
+                        .order_by(model.Measurement.name)
+                        .filter(filter_type)
+                        .all()
+                )
 
             # Pre-fetch all CompuMethods at once to avoid N+1 query problem
             # This dramatically improves performance for large result sets
@@ -103,19 +137,9 @@ class SearchThread(QThread):
 
             item_count = 0
             for item in items:
-                #if the item has no address ignore it
-                if hasattr(item.ecu_address, 'address') == False:
-                    continue
-
-                #if searching by address we need to complete the filtering here
-                if self.search_type == SearchType.ADDR:
-                    if self.search_position == SearchPosition.START and item.ecu_address.address < search_long:
-                        continue
-
-                    elif self.search_position == SearchPosition.CONTAIN and item.ecu_address.address != search_long:
-                        continue
-
-                    elif  item.ecu_address.address > search_long:
+                # For non-address searches, check if item has an address
+                if self.search_type != SearchType.ADDR:
+                    if hasattr(item.ecu_address, 'address') == False:
                         continue
 
                 # Get CompuMethod from pre-fetched dictionary
