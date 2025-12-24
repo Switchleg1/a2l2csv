@@ -84,6 +84,23 @@ class SearchThread(QThread):
                     .all()
             )
 
+            # Pre-fetch all CompuMethods at once to avoid N+1 query problem
+            # This dramatically improves performance for large result sets
+            compu_methods = {}
+            if items:
+                # Get unique conversion names from all items
+                conversion_names = set(item.conversion for item in items if hasattr(item, 'conversion'))
+                
+                # Fetch all needed CompuMethods in a single query
+                if conversion_names:
+                    compu_method_list = (
+                        self.a2lsession.query(model.CompuMethod)
+                            .filter(model.CompuMethod.name.in_(conversion_names))
+                            .all()
+                    )
+                    # Build a lookup dictionary for O(1) access
+                    compu_methods = {cm.name: cm for cm in compu_method_list}
+
             item_count = 0
             for item in items:
                 #if the item has no address ignore it
@@ -101,7 +118,12 @@ class SearchThread(QThread):
                     elif  item.ecu_address.address > search_long:
                         continue
 
-                compuMethod = self.a2lsession.query(model.CompuMethod).order_by(model.CompuMethod.name).filter(model.CompuMethod.name == item.conversion).first()
+                # Get CompuMethod from pre-fetched dictionary
+                compuMethod = compu_methods.get(item.conversion)
+                if compuMethod is None:
+                    # Fallback if conversion not found (shouldn't happen normally)
+                    continue
+
                 self.addItem.emit({
                     "Name"          : item.name,
                     "Unit"          : compuMethod.unit,
