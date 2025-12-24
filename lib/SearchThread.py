@@ -3,6 +3,7 @@ import lib.Constants as Constants
 from PyQt6.QtCore import QThread, pyqtSignal
 from pya2l import model
 from enum import Enum
+import time
 
 
 class SearchPosition(Enum):
@@ -20,6 +21,7 @@ class SearchThread(QThread):
     logMessage  = pyqtSignal(str)
     finished    = pyqtSignal()
     addItem     = pyqtSignal(dict)
+    addItemsBatch = pyqtSignal(list)  # New signal for batch updates
 
 
     def __init__(self, logMessage, addItem, finished):
@@ -41,6 +43,7 @@ class SearchThread(QThread):
             self.finished.emit()
             return
 
+        start_time = time.time()
         try:
             #get filter type
             filter_type = None
@@ -123,7 +126,7 @@ class SearchThread(QThread):
             compu_methods = {}
             if items:
                 # Get unique conversion names from all items
-                conversion_names = set(item.conversion for item in items if hasattr(item, 'conversion'))
+                conversion_names = set(item.conversion for item in items if hasattr(item, 'conversion') and item.conversion)
                 
                 # Fetch all needed CompuMethods in a single query
                 if conversion_names:
@@ -135,20 +138,29 @@ class SearchThread(QThread):
                     # Build a lookup dictionary for O(1) access
                     compu_methods = {cm.name: cm for cm in compu_method_list}
 
+            # Batch process results for better UI performance
+            batch_size = 100  # Process in batches of 100 items
+            results_batch = []
             item_count = 0
+            
             for item in items:
                 # For non-address searches, check if item has an address
+                # Address searches already filtered by address, so skip this check
                 if self.search_type != SearchType.ADDR:
-                    if hasattr(item.ecu_address, 'address') == False:
+                    if not hasattr(item, 'ecu_address') or not hasattr(item.ecu_address, 'address'):
                         continue
+
+                # Skip items without conversion (no CompuMethod means we can't display properly)
+                if not hasattr(item, 'conversion') or not item.conversion:
+                    continue
 
                 # Get CompuMethod from pre-fetched dictionary
                 compuMethod = compu_methods.get(item.conversion)
                 if compuMethod is None:
-                    # Fallback if conversion not found (shouldn't happen normally)
+                    # Skip if conversion not found
                     continue
 
-                self.addItem.emit({
+                result_item = {
                     "Name"          : item.name,
                     "Unit"          : compuMethod.unit,
                     "Equation"      : self.getEquation(item, compuMethod),
@@ -158,14 +170,26 @@ class SearchThread(QThread):
                     "Min"           : Helpers.float_to_str(item.lowerLimit),
                     "Max"           : Helpers.float_to_str(item.upperLimit),
                     "Description"   : item.longIdentifier
-                })
-
+                }
+                
+                results_batch.append(result_item)
                 item_count += 1
+                
+                # Emit batch when it reaches batch_size
+                if len(results_batch) >= batch_size:
+                    self.addItemsBatch.emit(results_batch)
+                    results_batch = []
 
-            self.logMessage.emit(f"Found {item_count} items")
+            # Emit any remaining items in the final batch
+            if results_batch:
+                self.addItemsBatch.emit(results_batch)
+
+            elapsed_time = time.time() - start_time
+            self.logMessage.emit(f"Found {item_count} items in {elapsed_time:.2f} seconds")
 
         except Exception as e:
-            self.logMessage.emit(f"Search: error - {e}")
+            elapsed_time = time.time() - start_time
+            self.logMessage.emit(f"Search: error - {e} (after {elapsed_time:.2f} seconds)")
 
         self.finished.emit()
 

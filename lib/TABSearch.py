@@ -11,6 +11,8 @@ class TABSearch(QWidget):
         super().__init__(parent)
         self.parent         = parent
         self.searchThread   = SearchThread(self.parent.addLogEntry, self.addItemEntry, self.onFinishedSearch)
+        # Connect the new batch signal for better performance
+        self.searchThread.addItemsBatch.connect(self.addItemsBatch)
 
         #Main layout box
         self.mainLayoutBox = QVBoxLayout()
@@ -188,4 +190,28 @@ class TABSearch(QWidget):
         for index, (key, value) in enumerate(item.items()):
             entryItem = QTableWidgetItem(value)
             self.itemsTable.setItem(self.itemsTable.rowCount() - 1, index, entryItem)
+
+
+    def addItemsBatch(self, items):
+        """Add multiple items to the table at once for better performance"""
+        if not items:
+            return
+        
+        # Disable sorting during batch insert for better performance
+        self.itemsTable.setSortingEnabled(False)
+        
+        # Get current row count and set new row count all at once
+        current_rows = self.itemsTable.rowCount()
+        new_row_count = current_rows + len(items)
+        self.itemsTable.setRowCount(new_row_count)
+        
+        # Add all items
+        for batch_index, item in enumerate(items):
+            row = current_rows + batch_index
+            for col_index, (key, value) in enumerate(item.items()):
+                entryItem = QTableWidgetItem(value)
+                self.itemsTable.setItem(row, col_index, entryItem)
+        
+        # Re-enable sorting after batch insert
+        self.itemsTable.setSortingEnabled(True)
             
