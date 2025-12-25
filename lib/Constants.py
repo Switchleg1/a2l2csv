@@ -14,6 +14,8 @@ LIST_COLUMN_SIZES               = [175, 50, 200, 75, 85, 50, 50, 65, 65, 65, 65,
 VIRTUAL_ADDRESSES               = ["0xFF", "0xFFFF", "0xFFFFFFFF"]
 NORMAL_BACKGROUND_COLOR         = QColor(48, 48, 48)
 DUPLICATE_BACKGROUND_COLOR      = QColor(120, 24, 24)
+MAX_SEARCH_ITEMS                = 20000
+SEARCH_BATCH_SIZE               = 100
 
 DATA_LENGTH = {
     "UWORD": "2",

@@ -10,10 +10,13 @@ class TABSearch(QWidget):
     def __init__(self, parent: QWidget):
         super().__init__(parent)
         self.parent         = parent
-        self.searchThread   = SearchThread(self.parent.addLogEntry, self.addItemEntry, self.onFinishedSearch)
-        # Connect the new batch signal for better performance
-        self.searchThread.addItemsBatch.connect(self.addItemsBatch)
 
+        #Search thread
+        self.searchThread   = SearchThread()
+        self.searchThread.addItemsBatch.connect(self.addItemsBatch)                     # Connect the new batch signal for better performance
+        self.searchThread.logMessage.connect(self.parent.addLogEntry)
+        self.searchThread.finished.connect(self.onFinishedSearch)
+        
         #Main layout box
         self.mainLayoutBox = QVBoxLayout()
 
@@ -128,6 +131,7 @@ class TABSearch(QWidget):
             else:
                 self.searchThread.search_type   = SearchType.ADDR
 
+            self.searchThread.items_left    = Constants.MAX_SEARCH_ITEMS
             self.searchThread.search_string = self.inputEditBox.text()
             self.searchThread.a2lsession    = self.parent.a2lsession
             self.searchThread.start()

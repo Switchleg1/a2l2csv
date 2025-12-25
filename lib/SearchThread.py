@@ -18,29 +18,26 @@ class SearchType(Enum):
 
 
 class SearchThread(QThread):
-    logMessage  = pyqtSignal(str)
-    finished    = pyqtSignal()
-    addItem     = pyqtSignal(dict)
-    addItemsBatch = pyqtSignal(list)  # New signal for batch updates
+    #Signals
+    logMessage      = pyqtSignal(str)
+    addItem         = pyqtSignal(dict)
+    addItemsBatch   = pyqtSignal(list)  # New signal for batch updates
 
 
-    def __init__(self, logMessage, addItem, finished):
+    def __init__(self):
         super().__init__()
-
-        self.logMessage.connect(logMessage)
-        self.addItem.connect(addItem)
-        self.finished.connect(finished)
 
         self.a2lsession         = None
         self.search_string      = ""
         self.search_position    = SearchPosition.CONTAIN
         self.search_type        = SearchType.NAME
+        self.item_batch_size    = Constants.SEARCH_BATCH_SIZE
+        self.items_left         = Constants.MAX_SEARCH_ITEMS
 
 
     def run(self):
         if self.a2lsession is None:
             self.logMessage.emit("Search: No database loaded")
-            self.finished.emit()
             return
 
         start_time = time.time()
@@ -73,7 +70,6 @@ class SearchThread(QThread):
                     search_long = int(self.search_string, 16)
                 except ValueError:
                     self.logMessage.emit(f"Search: invalid hex address - {self.search_string}")
-                    self.finished.emit()
                     return
                 # For address search, we'll handle filtering differently
                 # Set a dummy filter that matches everything with an address
@@ -81,7 +77,6 @@ class SearchThread(QThread):
 
             else:
                 self.logMessage.emit("Search: invalid search type")
-                self.finished.emit()
                 return
 
             self.logMessage.emit(f"Search {self.filter_type_string()} that {self.filter_position_string()} - {self.search_string}")
@@ -147,7 +142,6 @@ class SearchThread(QThread):
                     compu_methods = {cm.name: cm for cm in compu_method_list}
 
             # Batch process results for better UI performance
-            batch_size = 100  # Process in batches of 100 items
             results_batch = []
             item_count = 0
             
@@ -179,12 +173,22 @@ class SearchThread(QThread):
                     "Max"           : Helpers.float_to_str(item.upperLimit),
                     "Description"   : item.longIdentifier
                 }
+
+                # Emit single item if connected
+                self.addItem.emit(result_item)
+
+                #quit if the items count has been exceeded
+                self.items_left -= 1
+                if self.items_left < 0:
+                    elapsed_time = time.time() - start_time
+                    self.logMessage.emit(f"Max entries found {item_count} in {elapsed_time:.2f} seconds")
+                    return
                 
                 results_batch.append(result_item)
                 item_count += 1
                 
                 # Emit batch when it reaches batch_size
-                if len(results_batch) >= batch_size:
+                if len(results_batch) >= self.item_batch_size:
                     self.addItemsBatch.emit(results_batch)
                     results_batch = []
 
@@ -198,8 +202,6 @@ class SearchThread(QThread):
         except Exception as e:
             elapsed_time = time.time() - start_time
             self.logMessage.emit(f"Search: error - {e} (after {elapsed_time:.2f} seconds)")
-
-        self.finished.emit()
 
 
     def getEquation(self, item, compuMethod):

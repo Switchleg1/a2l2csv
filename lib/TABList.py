@@ -87,6 +87,29 @@ class TABList(QWidget):
             self._checkForDuplicate(target_row)
 
 
+    def getListItem(self, row):
+        if row in range(0, self.itemsTable.rowCount()):
+            item = {}
+            for column in range(0, self.itemsTable.columnCount(), 1):
+                table_item = self.itemsTable.item(row, column)
+                item[Constants.LIST_DATA_COLUMNS[column]] = table_item.text() if table_item is not None else ""
+
+            return item
+
+        return None
+
+
+    def updateListItem(self, item, row):
+        if item is None:
+            return
+
+        if row in range(0, self.itemsTable.rowCount()):
+            for column in range(0, self.itemsTable.columnCount(), 1):
+                column_name = Constants.LIST_DATA_COLUMNS[column]
+                if column_name in item:
+                    self.itemsTable.item(row, column).setText(item[column_name])
+
+
     def ImportButtonClick(self):
         overwrite = self.overwriteCheckBox.isChecked()
         csvFilename = QFileDialog.getOpenFileName(self, "Open CSV", "", "CSV (*.csv)",)

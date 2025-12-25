@@ -1,8 +1,7 @@
 import sys
 import lib.Constants as Constants
 from PyQt6.QtWidgets import QMainWindow, QApplication, QWidget, QVBoxLayout, QListWidget, QTabWidget
-from pya2l import DB, model
-from pya2l.api import inspect
+from pya2l import DB
 from lib.TABA2L import TABA2L
 from lib.TABSearch import TABSearch
 from lib.TABList import TABList
@@ -51,6 +50,14 @@ class MainWindow(QMainWindow):
 
     def addListItem(self, item, overwrite=False):
         self.listTab.addListItem(item, overwrite)
+
+
+    def getListItem(self, row):
+        return self.listTab.getListItem(row)
+
+
+    def updateListItem(self, item, row):
+        self.listTab.updateListItem(item, row)
 
 
 # Main

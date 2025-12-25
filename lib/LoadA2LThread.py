@@ -5,13 +5,9 @@ from pya2l import DB
 
 class LoadA2LThread(QThread):
     logMessage = pyqtSignal(str)
-    finished = pyqtSignal()
 
-    def __init__(self, logMessage, finished):
+    def __init__(self):
         super().__init__()
-
-        self.logMessage.connect(logMessage)
-        self.finished.connect(finished)
 
         self.a2ldb      = None
         self.a2lsession = None
@@ -66,5 +62,3 @@ class LoadA2LThread(QThread):
 
             except Exception as e:
                 self.logMessage.emit(f"Failed to load: {e}")
-
-        self.finished.emit()
