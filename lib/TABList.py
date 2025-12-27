@@ -111,12 +111,23 @@ class TABList(QWidget):
                     self.itemsTable.item(row, column_index).setText(item[column_str])
 
 
-    def ImportButtonClick(self):
+    def ImportButtonClick(self, csvFilename=None):
         overwrite = self.overwriteCheckBox.isChecked()
-        csvFilename = QFileDialog.getOpenFileName(self, "Open CSV", "", "CSV (*.csv)",)
-        if len(csvFilename[0]) == 0:
-            return
+        
+        # If no filename provided, show file dialog
+        if csvFilename is None:
+            csvFilename = QFileDialog.getOpenFileName(self, "Open CSV", "", "CSV (*.csv)",)
+            if len(csvFilename[0]) == 0:
+                return
+        else:
+            # If filename is a string, convert to tuple format expected by _loadCSV
+            if isinstance(csvFilename, str):
+                csvFilename = (csvFilename, "")
+        
+        self._loadCSV(overwrite, csvFilename)
 
+
+    def _loadCSV(self, overwrite, csvFilename):
         try:
             with open(csvFilename[0], "r", newline='') as csvfile:
                 csvreader = csv.DictReader(csvfile)

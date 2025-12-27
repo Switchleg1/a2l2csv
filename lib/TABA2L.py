@@ -93,6 +93,10 @@ class TABA2L(QWidget):
             self.parent.tabs.setTabEnabled(1, True)
             self.parent.tabs.setTabEnabled(2, True)
             self.parent.tabs.setCurrentIndex(1)
+            
+            # Check if there's a pending CSV file to load
+            if hasattr(self.parent, 'checkAndLoadPendingCSV'):
+                self.parent.checkAndLoadPendingCSV()
 
 
     def _replaceFinished(self):
