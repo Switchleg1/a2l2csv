@@ -1,4 +1,5 @@
 from PyQt6.QtGui import QColor
+from PyQt6.QtWidgets import QTableWidgetItem
 
 
 #list of constants for application
@@ -12,7 +13,7 @@ LIST_DATA_COLUMNS_REQUIRED      = ["Name", "Unit", "Equation", "Format", "Addres
 LIST_DATA_COLUMNS               = LIST_DATA_COLUMNS_REQUIRED + ["Description"]
 LIST_COLUMN_SIZES               = [175, 50, 200, 75, 85, 50, 50, 65, 65, 65, 65, 65, 50, 150, 150, 750]
 VIRTUAL_ADDRESSES               = ["0XFF", "0XFFFF", "0XFFFFFFFF"]
-NORMAL_BACKGROUND_COLOR         = QColor(48, 48, 48)
+NORMAL_BACKGROUND_COLOR         = QTableWidgetItem().background()
 DUPLICATE_BACKGROUND_COLOR      = QColor(120, 24, 24)
 MAX_SEARCH_ITEMS                = 20000
 SEARCH_BATCH_SIZE               = 100

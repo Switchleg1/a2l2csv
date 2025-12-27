@@ -4,9 +4,9 @@ import argparse
 import lib.Constants as Constants
 from PyQt6.QtWidgets import QMainWindow, QApplication, QWidget, QVBoxLayout, QListWidget, QTabWidget
 from pya2l import DB
-from lib.TABA2L import TABA2L
-from lib.TABSearch import TABSearch
-from lib.TABList import TABList
+from lib.UI.TABA2L import TABA2L
+from lib.UI.TABSearch import TABSearch
+from lib.UI.TABList import TABList
 
 
 class MainWindow(QMainWindow):

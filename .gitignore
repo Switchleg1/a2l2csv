@@ -16,6 +16,10 @@ IFDATA.tmp
 # CSV files
 *.csv
 
+# PyInstaller
+*.spec
+build/
+
 # Virtual environment
 .venv/
 venv/
