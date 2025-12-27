@@ -19,6 +19,7 @@ IFDATA.tmp
 # PyInstaller
 *.spec
 build/
+dist/
 
 # Virtual environment
 .venv/

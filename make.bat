@@ -1,2 +1,2 @@
-python.exe -m  PyInstaller --name=a2l2csv --onefile --collect-all pya2l a2l2csv.py
+python.exe -m PyInstaller --name=a2l2csv --onefile --collect-all pya2l --hidden-import=PyQt6.QtCore --hidden-import=PyQt6.QtGui --hidden-import=PyQt6.QtWidgets --hidden-import=PyQt6.sip a2l2csv.py
 @pause
