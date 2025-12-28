@@ -305,8 +305,8 @@ class SearchThread(QThread):
         if c[0] == '-':
             c = c[1:]
             sign = '+'
-        
-        operation = f"(({f} * [x]) {sign} {c}) / {b}"
+
+        operation = f"(({f} * x) {sign} {c}) / {b}"
         
         if a == "0.0" and d == "0.0" and e=="0.0" and f!="0.0":
             return operation
