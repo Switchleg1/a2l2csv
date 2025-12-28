@@ -79,9 +79,12 @@ class TABDatabase(QWidget):
 
 
     def ExportButtonClick(self):
+        dbFileName = QFileDialog.getSaveFileName(self, "Save Database", "", "Database (*.csv)",)
+        if len(dbFileName[0]) == 0:
+            return
+
         self._setUI(False)
 
-        dbFileName = QFileDialog.getSaveFileName(self, "Save Database", "", "Database (*.csv)",)
         self.exportThread.filename      = dbFileName[0]
         self.exportThread.dbType        = self.parent.db_type
         self.exportThread.a2lSession    = self.parent.a2lsession
