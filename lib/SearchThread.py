@@ -1,3 +1,4 @@
+from asyncio import constants
 import time
 import lib.Helpers as Helpers
 import lib.Constants as Constants
@@ -170,10 +171,26 @@ class SearchThread(QThread):
                     # Skip if conversion not found
                     continue
 
+                compuMethod = compu_methods.get(item.conversion)
+
+                #build format string
+                try:
+                    format_precision = int(compuMethod.format.split(".")[-1].lstrip().rstrip())
+
+                    if format_precision > Constants.FORMAT_PRECISION_LIMIT:
+                        decimaformat_precisionl_places = Constants.FORMAT_PRECISION_LIMIT
+
+                    format_str = f"%01.{format_precision}f"
+
+                except:
+                    format_str = "%01.0f"
+
+                #build our result item
                 result_item = {
                     "Name"          : item.name,
                     "Unit"          : compuMethod.unit,
                     "Equation"      : self.getEquation(item, compuMethod),
+                    "Format"        : format_str,
                     "Address"       : hex(item.ecu_address.address),
                     "Length"        : Constants.DATA_LENGTH[item.datatype],
                     "Signed"        : Constants.DATA_SIGNED[item.datatype],
