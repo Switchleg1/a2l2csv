@@ -6,7 +6,7 @@ from PyQt6.QtWidgets import QTableWidgetItem
 #list of constants for application
 
 APPLICATION_VERSION_MAJOR       = 0
-APPLICATION_VERSION_MINOR       = 4
+APPLICATION_VERSION_MINOR       = 5
 APPLICATION_VERSION_STRING      = f"A2L2CSV v{APPLICATION_VERSION_MAJOR}.{APPLICATION_VERSION_MINOR}"
 SEARCH_DATA_COLUMNS             = ["Name", "Unit", "Equation", "Format", "Address", "Length", "Signed", "Min", "Max", "Description"]
 SEARCH_COLUMN_SIZES             = [175, 50, 200, 50, 85, 45, 50, 50, 50, 750]
