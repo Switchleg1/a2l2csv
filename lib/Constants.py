@@ -18,6 +18,7 @@ DUPLICATE_BACKGROUND_COLOR      = QColor(120, 24, 24)
 MAX_SEARCH_ITEMS                = 20000
 SEARCH_BATCH_SIZE               = 100
 APPLY_SQL_OPTIMIZATIONS         = False
+CHECK_FOR_DUPLICATES            = True
 
 DATA_LENGTH = {
     "UWORD": "2",
