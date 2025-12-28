@@ -57,10 +57,10 @@ class TABList(QWidget):
                 self.parent.addLogEntry(f"Failed to add item to list: {item}")
                 return
 
-        # Check if item with same Address already exists
+        # Check if item with same Address already exists but only if its not a virtual address
+        item_address = item.get("Address", "")
         existing_rows = []
-        if overwrite:
-            item_address = item.get("Address", "")
+        if overwrite and item_address.upper() not in Constants.VIRTUAL_ADDRESSES:
             address_col = Constants.LIST_DATA_COLUMNS.index("Address")
             for row in range(self.itemsTable.rowCount()):
                 cell = self.itemsTable.item(row, address_col)
@@ -126,27 +126,6 @@ class TABList(QWidget):
         self._loadCSV(overwrite, csvFilename)
 
 
-    def _loadCSV(self, overwrite, csvFilename):
-        try:
-            with open(csvFilename[0], "r", encoding="latin-1", newline='') as csvfile:
-                csvreader = csv.DictReader(csvfile)
-
-                for column_str in Constants.LIST_DATA_COLUMNS_REQUIRED:
-                    if column_str not in csvreader.fieldnames:
-                        self.parent.addLogEntry(f"Import failed: {csvFilename[0]} does not contain {column_str}")
-                        return
-
-                for row in csvreader:
-                    self.addListItem(row, overwrite)
-
-                self.checkForDuplicates()
-
-                self.parent.addLogEntry(f"Import successful: {csvFilename[0]}")
-
-        except Exception as e:
-            self.parent.addLogEntry(f"Import failed: {csvFilename[0]} - {e}")
-
-
     def ExportButtonClick(self):
         csvFilename = QFileDialog.getSaveFileName(self, "Save CSV", "", "CSV (*.csv)",)
         if len(csvFilename[0]) == 0:
@@ -175,8 +154,17 @@ class TABList(QWidget):
 
 
     def RemoveButtonClick(self):
-        while len(self.itemsTable.selectedItems()):
-            self.itemsTable.removeRow(self.itemsTable.selectedItems()[0].row())
+        # Get a list of selected row indices
+        selected_rows = set()
+        for item in self.itemsTable.selectedItems():
+            selected_rows.add(item.row())
+
+        # Convert to a list and sort in reverse order
+        sorted_rows = sorted(list(selected_rows), reverse=True)
+
+        # Delete rows
+        for row in sorted_rows:
+            self.itemsTable.removeRow(row)
 
         self.checkForDuplicates()
 
@@ -187,35 +175,29 @@ class TABList(QWidget):
             return
 
         try:
-            #get address index
-            address_index = Constants.LIST_DATA_COLUMNS.index("Address")
-
             #reset all rows to normal color
             for row in range(self.itemsTable.rowCount()):
                 self._setRowColor(row, Constants.NORMAL_BACKGROUND_COLOR)
 
+            #get address index
+            address_index = Constants.LIST_DATA_COLUMNS.index("Address")
+
+            #use dictionary to store addresses
+            duplicated_dict = {}
             for row in range(self.itemsTable.rowCount()):
-                #if the row is already highlighted continue
-                if self.itemsTable.item(row, 0).background() == Constants.DUPLICATE_BACKGROUND_COLOR:
+                row_address = self.itemsTable.item(row, address_index).text().upper()
+
+                #skip virtual addresses
+                if row_address in Constants.VIRTUAL_ADDRESSES:
                     continue
 
-                #get address and see if its a virtual address, if so move on
-                address = self.itemsTable.item(row, address_index).text().upper()
-                if address in Constants.VIRTUAL_ADDRESSES:
-                    self._setRowColor(row, Constants.NORMAL_BACKGROUND_COLOR)
-                    continue
-
-                #now compare address to all rows except its own
-                isDuplicate = False
-                for compareRow in range(row + 1, self.itemsTable.rowCount()):
-                    compareAddress = self.itemsTable.item(compareRow, address_index).text().upper()
-                    if compareAddress == address:
-                        isDuplicate = True
-                        self._setRowColor(compareRow, Constants.DUPLICATE_BACKGROUND_COLOR)
-
-                #did we find a duplicate?
-                if isDuplicate:
+                #check dict for existing address entry
+                if row_address in duplicated_dict:
                     self._setRowColor(row, Constants.DUPLICATE_BACKGROUND_COLOR)
+                    self._setRowColor(duplicated_dict[row_address], Constants.DUPLICATE_BACKGROUND_COLOR)
+
+                else:
+                    duplicated_dict[row_address] = row
 
         except Exception as e:
             self.parent.addLogEntry(f"Check for duplicates failed: {e}")
@@ -224,3 +206,24 @@ class TABList(QWidget):
     def _setRowColor(self, row, color):
         for column_index in range(self.itemsTable.columnCount()):
             self.itemsTable.item(row, column_index).setBackground(color)
+
+
+    def _loadCSV(self, overwrite, csvFilename):
+        try:
+            with open(csvFilename[0], "r", encoding="latin-1", newline='') as csvfile:
+                csvreader = csv.DictReader(csvfile)
+
+                for column_str in Constants.LIST_DATA_COLUMNS_REQUIRED:
+                    if column_str not in csvreader.fieldnames:
+                        self.parent.addLogEntry(f"Import failed: {csvFilename[0]} does not contain {column_str}")
+                        return
+
+                for row in csvreader:
+                    self.addListItem(row, overwrite)
+
+                self.checkForDuplicates()
+
+                self.parent.addLogEntry(f"Import successful: {csvFilename[0]}")
+
+        except Exception as e:
+            self.parent.addLogEntry(f"Import failed: {csvFilename[0]} - {e}")

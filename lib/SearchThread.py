@@ -29,9 +29,16 @@ class SearchThread(QThread):
         self.search_type        = SearchType.NAME
         self.item_batch_size    = Constants.SEARCH_BATCH_SIZE
         self.items_left         = Constants.MAX_SEARCH_ITEMS
+        self.start_time         = 0
+        self.item_count         = 0
+        self.results_batch      = []
 
 
     def run(self):
+        self.start_time     = time.time()
+        self.item_count     = 0
+        self.results_batch  = []
+
         if self.db_type == DBType.A2L:
             self._runA2L()
 
@@ -42,9 +49,7 @@ class SearchThread(QThread):
             self.logMessage.emit("Search: No database loaded")
 
 
-
     def _runCSV(self):
-        start_time = time.time()
         try:
             #get dictionary type
             dict_type = None
@@ -80,10 +85,6 @@ class SearchThread(QThread):
                 results_dict = {key: value for key, value in dict_type.items() if key.lower() == self.search_string.lower()}
 
             if results_dict is not None:
-                # Batch process results for better UI performance
-                results_batch = []
-                item_count = 0
-
                 for key, value in results_dict.items():
                     item = results_dict[key]
 
@@ -101,34 +102,19 @@ class SearchThread(QThread):
                         "Description"   : item["Description"]
                     }
 
-                    # Emit single item if connected
-                    self.addItem.emit(result_item)
-
-                    #quit if the items count has been exceeded
-                    self.items_left -= 1
-                    if self.items_left < 0:
-                        elapsed_time = time.time() - start_time
-                        self.logMessage.emit(f"Max entries found {item_count} in {elapsed_time:.2f} seconds")
+                    #if we exceed the max item count return
+                    if self._addBatchItem(result_item) == False:
+                        self._emitBatch(0)
+                        self.logMessage.emit(f"Max items found {self.item_count} in {self._elapsedTime():.2f} seconds")
                         return
-                
-                    results_batch.append(result_item)
-                    item_count += 1
-                
-                    # Emit batch when it reaches batch_size
-                    if len(results_batch) >= self.item_batch_size:
-                        self.addItemsBatch.emit(results_batch)
-                        results_batch = []
 
-                # Emit any remaining items in the final batch
-                if results_batch:
-                    self.addItemsBatch.emit(results_batch)
+                #emit all remaining items from batch
+                self._emitBatch(0)
 
-                elapsed_time = time.time() - start_time
-                self.logMessage.emit(f"Found {item_count} items in {elapsed_time:.2f} seconds")
+                self.logMessage.emit(f"Found {self.item_count} items in {self._elapsedTime():.2f} seconds")
 
         except Exception as e:
-            elapsed_time = time.time() - start_time
-            self.logMessage.emit(f"Search: error - {e} (after {elapsed_time:.2f} seconds)")
+            self.logMessage.emit(f"Search: error - {e} (after {self._elapsedTime():.2f} seconds)")
 
 
     def _runA2L(self):
@@ -136,7 +122,6 @@ class SearchThread(QThread):
             self.logMessage.emit("Search: No database loaded")
             return
 
-        start_time = time.time()
         try:
             #get filter type
             filter_type = None
@@ -181,7 +166,7 @@ class SearchThread(QThread):
                 self.logMessage.emit("Search: invalid search type")
                 return
 
-            self.logMessage.emit(f"Search {self.filter_type_string()} that {self.filter_position_string()} - {self.search_string}")
+            self.logMessage.emit(f"Search {self._filterTypeString()} that {self._filterPositionString()} - {self.search_string}")
 
             # For address searches, use a more efficient approach
             if self.search_type == SearchType.ADDR:
@@ -243,10 +228,6 @@ class SearchThread(QThread):
                     # Build a lookup dictionary for O(1) access
                     compu_methods = {cm.name: cm for cm in compu_method_list}
 
-            # Batch process results for better UI performance
-            results_batch = []
-            item_count = 0
-            
             for item in items:
                 # For non-address searches, check if item has an address
                 # Address searches already filtered by address, so skip this check
@@ -282,7 +263,7 @@ class SearchThread(QThread):
                 result_item = {
                     "Name"          : item.name,
                     "Unit"          : compuMethod.unit,
-                    "Equation"      : self.getEquation(item, compuMethod),
+                    "Equation"      : self._getEquation(item, compuMethod),
                     "Format"        : format_str,
                     "Address"       : hex(item.ecu_address.address),
                     "Length"        : Constants.DATA_LENGTH[item.datatype],
@@ -292,37 +273,22 @@ class SearchThread(QThread):
                     "Description"   : item.longIdentifier
                 }
 
-                # Emit single item if connected
-                self.addItem.emit(result_item)
-
-                #quit if the items count has been exceeded
-                self.items_left -= 1
-                if self.items_left < 0:
-                    elapsed_time = time.time() - start_time
-                    self.logMessage.emit(f"Max entries found {item_count} in {elapsed_time:.2f} seconds")
+                #if we exceed the max item count return
+                if self._addBatchItem(result_item) == False:
+                    self._emitBatch(0)
+                    self.logMessage.emit(f"Max items found {self.item_count} in {self._elapsedTime():.2f} seconds")
                     return
-                
-                results_batch.append(result_item)
-                item_count += 1
-                
-                # Emit batch when it reaches batch_size
-                if len(results_batch) >= self.item_batch_size:
-                    self.addItemsBatch.emit(results_batch)
-                    results_batch = []
 
-            # Emit any remaining items in the final batch
-            if results_batch:
-                self.addItemsBatch.emit(results_batch)
+            #emit all remaining items from batch
+            self._emitBatch(0)
 
-            elapsed_time = time.time() - start_time
-            self.logMessage.emit(f"Found {item_count} items in {elapsed_time:.2f} seconds")
+            self.logMessage.emit(f"Found {self.item_count} items in {self._elapsedTime():.2f} seconds")
 
         except Exception as e:
-            elapsed_time = time.time() - start_time
-            self.logMessage.emit(f"Search: error - {e} (after {elapsed_time:.2f} seconds)")
+            self.logMessage.emit(f"Search: error - {e} (after {self._elapsedTime():.2f} seconds)")
 
 
-    def getEquation(self, item, compuMethod):
+    def _getEquation(self, item, compuMethod):
         if compuMethod.coeffs is None:
             return "x"
 
@@ -348,7 +314,7 @@ class SearchThread(QThread):
             return "x"
 
 
-    def filter_position_string(self):
+    def _filterPositionString(self):
         if self.search_position == SearchPosition.START:
             return "starts with"
 
@@ -359,7 +325,7 @@ class SearchThread(QThread):
             return "ends with"
 
 
-    def filter_type_string(self):
+    def _filterTypeString(self):
         if self.search_type == SearchType.NAME:
             return "name"
 
@@ -368,3 +334,31 @@ class SearchThread(QThread):
 
         else:
             return "address"
+
+
+    def _addBatchItem(self, item):
+        self.item_count += 1
+
+        # Emit single item if connected
+        self.addItem.emit(item)
+                
+        # Emit batch when it reaches batch_size
+        self.results_batch.append(item)
+        self._emitBatch(Constants.SEARCH_BATCH_SIZE)
+
+        #quit if the items count has been exceeded
+        self.items_left -= 1
+        if self.items_left < 0:
+            return False
+
+        return True
+
+
+    def _emitBatch(self, batch_size):
+        if len(self.results_batch) >= batch_size:
+            self.addItemsBatch.emit(self.results_batch)
+            self.results_batch = []
+
+
+    def _elapsedTime(self):
+        return time.time() - self.start_time

@@ -41,7 +41,7 @@ class ReplaceThread():
         self.originalCSVAddressDB   = {}
 
 
-    def run(self):
+    def start(self):
         if self.isRunning == True:
             self.logMessage(f"Overwrite in progress, unable to start overwrite task")
             return
@@ -76,6 +76,7 @@ class ReplaceThread():
             elapsed_time = time.time() - self.searchStartTime
             self.logMessage(f"Replaced {self.replaceItemCount} out of {self.searchItemCount} items in {elapsed_time:.2f} seconds")
 
+            self.isRunning = False
             self.finished()
             return
 

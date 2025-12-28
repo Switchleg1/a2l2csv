@@ -1,6 +1,7 @@
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QFileDialog, QLineEdit, QLabel, QCheckBox
 from lib.LoadThread import LoadThread
 from lib.ReplaceThread import ReplaceThread
+from lib.ExportThread import ExportThread
 from lib.Constants import DBType
 
 class TABDatabase(QWidget):
@@ -11,9 +12,13 @@ class TABDatabase(QWidget):
         #Load
         self.loadThread = LoadThread()
         self.loadThread.logMessage.connect(self.parent.addLogEntry)
-        self.loadThread.finished.connect(self.onFinishedLoading)
+        self.loadThread.finished.connect(self._onFinishedLoading)
 
-        self.replaceThread = ReplaceThread(self.parent.addLogEntry, self.parent.getListItem, self.parent.updateListItem, self._replaceFinished)
+        #Replace
+        self.replaceThread = ReplaceThread(self.parent.addLogEntry, self.parent.getListItem, self.parent.updateListItem, self._onFinishedReplace)
+
+        #Export
+        self.exportThread = ExportThread(self.parent.addLogEntry, self._onFinishedExporting)
 
         #Main layout box
         self.mainLayoutBox = QVBoxLayout()
@@ -41,15 +46,24 @@ class TABDatabase(QWidget):
         self.overwriteCheckBox.setChecked(False)
         self.mainLayoutBox.addWidget(self.overwriteCheckBox)
 
-        #Load button
+        #Buttons layout
+        self.buttonsLayoutBox = QHBoxLayout()
+
         self.loadPushButton = QPushButton("Load")
         self.loadPushButton.setFixedHeight(50)
         self.loadPushButton.pressed.connect(self.LoadButtonClick)
-        self.mainLayoutBox.addWidget(self.loadPushButton)
+        self.buttonsLayoutBox.addWidget(self.loadPushButton)
+
+        self.exportPushButton = QPushButton("Export")
+        self.exportPushButton.setFixedHeight(50)
+        self.exportPushButton.pressed.connect(self.ExportButtonClick)
+        self.buttonsLayoutBox.addWidget(self.exportPushButton)
+
+        self.mainLayoutBox.addLayout(self.buttonsLayoutBox)
 
         self.setLayout(self.mainLayoutBox)
 
-        self._checkOverwrite()
+        self._checkForDB()
 
 
     def FindButtonClick(self):
@@ -58,15 +72,24 @@ class TABDatabase(QWidget):
 
 
     def LoadButtonClick(self):
-        self.loadPushButton.setEnabled(False)
-        self.parent.tabs.setTabEnabled(1, False)
-        self.parent.tabs.setTabEnabled(2, False)
+        self._setUI(False)
 
         self.loadThread.filename = self.fileEditBox.text()
         self.loadThread.start()
 
 
-    def onFinishedLoading(self):
+    def ExportButtonClick(self):
+        self._setUI(False)
+
+        dbFileName = QFileDialog.getSaveFileName(self, "Save Database", "", "Database (*.csv)",)
+        self.exportThread.filename      = dbFileName[0]
+        self.exportThread.dbType        = self.parent.db_type
+        self.exportThread.a2lSession    = self.parent.a2lsession
+        self.exportThread.csvNameDB     = self.parent.csv_name_db
+        self.exportThread.start()
+
+
+    def _onFinishedLoading(self):
         #overwrite list pid addresses
         if self.overwriteCheckBox.isChecked():
             self.replaceThread.newDBType              = self.loadThread.db_type
@@ -79,14 +102,39 @@ class TABDatabase(QWidget):
             self.replaceThread.originalCSVNameDB      = self.parent.csv_name_db
             self.replaceThread.originalCSVAddressDB   = self.parent.csv_address_db
 
-            self.replaceThread.run()
+            self.replaceThread.start()
 
         else:
             self._loadDatabase()
 
 
-    def _checkOverwrite(self):
-        self.overwriteCheckBox.setEnabled(True if self.parent.db_type != DBType.NONE else False)
+    def _onFinishedExporting(self):
+        self._setUI(True)
+
+
+    def _setUI(self, enabled):
+        self.loadPushButton.setEnabled(enabled)
+        self.exportPushButton.setEnabled(enabled)
+
+        # Switch to Search tab if file loaded successfully
+        if enabled and self.parent.db_type != DBType.NONE:
+            self.parent.tabs.setTabEnabled(1, True)
+            self.parent.tabs.setTabEnabled(2, True)
+            self.parent.tabs.setCurrentIndex(1)
+            
+            # Check if there's a pending CSV file to load
+            if hasattr(self.parent, 'checkAndLoadPendingCSV'):
+                self.parent.checkAndLoadPendingCSV()
+
+        else:
+            self.parent.tabs.setTabEnabled(1, False)
+            self.parent.tabs.setTabEnabled(2, False)
+
+
+    def _checkForDB(self):
+        db_loaded = True if self.parent.db_type != DBType.NONE else False
+        self.overwriteCheckBox.setEnabled(db_loaded)
+        self.exportPushButton.setEnabled(db_loaded)
 
 
     def _loadDatabase(self):
@@ -96,22 +144,12 @@ class TABDatabase(QWidget):
         self.parent.csv_desc_db     = self.loadThread.csv_desc_db
         self.parent.csv_address_db  = self.loadThread.csv_address_db
 
-        self.parent.db_type = self.loadThread.db_type
+        self.parent.db_type         = self.loadThread.db_type
 
         #update layout
-        self.loadPushButton.setEnabled(True)
-        self._checkOverwrite()
-
-        # Switch to Search tab if file loaded successfully
-        if self.parent.db_type != DBType.NONE:
-            self.parent.tabs.setTabEnabled(1, True)
-            self.parent.tabs.setTabEnabled(2, True)
-            self.parent.tabs.setCurrentIndex(1)
-            
-            # Check if there's a pending CSV file to load
-            if hasattr(self.parent, 'checkAndLoadPendingCSV'):
-                self.parent.checkAndLoadPendingCSV()
+        self._setUI(True)
+        self._checkForDB()
 
 
-    def _replaceFinished(self):
+    def _onFinishedReplace(self):
         self._loadDatabase()
