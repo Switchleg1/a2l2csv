@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QFileDialog, QLineEdit, QLabel, QCheckBox
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QFileDialog, QLineEdit, QLabel, QCheckBox, QProgressBar
 from lib.LoadA2LThread import LoadA2LThread
 from lib.ReplaceThread import ReplaceThread
 
@@ -11,6 +11,7 @@ class TABA2L(QWidget):
         #Load
         self.loadThread = LoadA2LThread()
         self.loadThread.logMessage.connect(self.parent.addLogEntry)
+        self.loadThread.progressUpdate.connect(self.onProgressUpdate)
         self.loadThread.finished.connect(self.onFinishedLoading)
 
         self.replaceThread = ReplaceThread(self.parent.addLogEntry, self.parent.getListItem, self.parent.updateListItem, self._replaceFinished)
@@ -41,6 +42,18 @@ class TABA2L(QWidget):
         self.overwriteCheckBox.setChecked(False)
         self.mainLayoutBox.addWidget(self.overwriteCheckBox)
 
+        #Force rebuild checkbox
+        self.forceRebuildCheckBox = QCheckBox("Force rebuild of A2L database")
+        self.forceRebuildCheckBox.setChecked(False)
+        self.mainLayoutBox.addWidget(self.forceRebuildCheckBox)
+
+        #Progress bar
+        self.progressBar = QProgressBar()
+        self.progressBar.setFixedHeight(25)
+        self.progressBar.setVisible(False)
+        self.progressBar.setTextVisible(True)
+        self.mainLayoutBox.addWidget(self.progressBar)
+
         #Load button
         self.loadPushButton = QPushButton("Load")
         self.loadPushButton.setFixedHeight(50)
@@ -61,9 +74,28 @@ class TABA2L(QWidget):
         self.loadPushButton.setEnabled(False)
         self.parent.tabs.setTabEnabled(1, False)
         self.parent.tabs.setTabEnabled(2, False)
+        self.progressBar.setVisible(True)
+        self.progressBar.setValue(0)
 
         self.loadThread.filename = self.fileEditBox.text()
+        self.loadThread.forceRebuild = self.forceRebuildCheckBox.isChecked()
         self.loadThread.start()
+
+
+    def onProgressUpdate(self, percentage, status_text):
+        if percentage == 0:
+            # Reset or show indeterminate
+            self.progressBar.setRange(0, 100)
+            self.progressBar.setValue(0)
+        elif percentage < 0:
+            # Indeterminate mode (busy indicator)
+            self.progressBar.setRange(0, 0)
+        else:
+            # Normal progress mode
+            self.progressBar.setRange(0, 100)
+            self.progressBar.setValue(percentage)
+        
+        self.progressBar.setFormat(status_text)
 
 
     def onFinishedLoading(self):
@@ -86,6 +118,7 @@ class TABA2L(QWidget):
 
         #update layout
         self.loadPushButton.setEnabled(True)
+        self.progressBar.setVisible(False)
         self._checkOverwrite()
 
         # Switch to Search tab if file loaded successfully
