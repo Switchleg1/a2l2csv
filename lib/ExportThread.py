@@ -9,14 +9,18 @@ from lib.Constants import DBType
 
 
 class ExportThread():
-    def __init__(self, logMessage, finished):
+    def __init__(self, logMessage, updateProgress, setupProgress, finished):
         super().__init__()
 
         self.logMessage         = logMessage
+        self.updateProgress     = updateProgress
+        self.setupProgress      = setupProgress
         self.finished           = finished
 
         self.searchThread = SearchThread()
         self.searchThread.addItem.connect(self._searchAddItem)
+        self.searchThread.updateProgress.connect(self.updateProgress)
+        self.searchThread.setupProgress.connect(self.setupProgress)
         self.searchThread.finished.connect(self._searchFinished)
 
         self.filename               = ""
@@ -35,6 +39,8 @@ class ExportThread():
             self.logMessage(f"Export in progress, unable to start export task")
             self.finished()
             return
+
+        self.logMessage(f"Exporting database to file: {self.filename}")
 
         self.isRunning                      = True
         self.startTime                      = time.time()
@@ -80,10 +86,10 @@ class ExportThread():
                 csvwriter.writerows(self.exportItems)
 
                 elapsed_time = time.time() - self.startTime
-                self.logMessage(f"Export successful: {self.filename} (after {elapsed_time:.2f} seconds)")
+                self.logMessage(f"Finished after {elapsed_time:.2f} seconds")
 
         except Exception as e:
-            self.logMessage(f"Export failed: {self.filename} (after {elapsed_time:.2f} seconds) - {e}")
+            self.logMessage(f"Failed after {elapsed_time:.2f} seconds - {e}")
             
         self.isRunning = False
         self.finished()

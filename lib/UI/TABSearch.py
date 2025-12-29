@@ -1,3 +1,4 @@
+import time
 import lib.Helpers as Helpers
 import lib.Constants as Constants
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QRadioButton, QLineEdit, QLabel, QTableWidget, QTableWidgetItem, QAbstractItemView, QButtonGroup, QCheckBox, QGridLayout
@@ -15,6 +16,8 @@ class TABSearch(QWidget):
         self.searchThread   = SearchThread()
         self.searchThread.addItemsBatch.connect(self.addItemsBatch)                     # Connect the new batch signal for better performance
         self.searchThread.logMessage.connect(self.parent.addLogEntry)
+        self.searchThread.updateProgress.connect(self.parent.updateProgress)
+        self.searchThread.setupProgress.connect(self.parent.setupProgress)
         self.searchThread.finished.connect(self.onFinishedSearch)
         
         #Main layout box
@@ -145,11 +148,17 @@ class TABSearch(QWidget):
 
 
     def AddButtonClick(self):
+        start_time = time.time()
         overwrite = self.overwriteCheckBox.isChecked()
         selected_rows = set()
         for item in self.itemsTable.selectedItems():
             selected_rows.add(item.row())
 
+        #show progress bar
+        self.parent.updateProgress(1, 0)
+        self.parent.setupProgress(1, 0, len(selected_rows), True)
+
+        item_count = 0
         for row in sorted(selected_rows):
             # Get cell values safely, handling None cells
             name_item       = self.itemsTable.item(row, 0)
@@ -188,9 +197,17 @@ class TABSearch(QWidget):
             }
             self.parent.addListItem(item, overwrite)
 
+            #update progress bar
+            item_count += 1
+            self.parent.updateProgress(1, item_count)
+
         self.parent.checkForDuplicates()
 
-        self.parent.addLogEntry(f"Added {len(selected_rows)} items to list")
+        elapsed_time = time.time() - start_time
+        self.parent.addLogEntry(f"Added {item_count} items to list after {elapsed_time:.2f} seconds")
+
+        #hide progress bar
+        self.parent.setupProgress(1, 0, 0, False)
 
 
     def onFinishedSearch(self):

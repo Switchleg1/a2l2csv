@@ -7,12 +7,15 @@ from lib.Constants import DBType
 
 
 class ReplaceThread():
-    def __init__(self, logMessage, getListItem, updateListItem, finished):
+    def __init__(self, logMessage, getListItemCount, getListItem, updateListItem, updateProgress, setupProgress, finished):
         super().__init__()
 
         self.logMessage         = logMessage
+        self.getListItemCount   = getListItemCount
         self.getListItem        = getListItem
         self.updateListItem     = updateListItem
+        self.updateProgress     = updateProgress
+        self.setupProgress      = setupProgress
         self.finished           = finished
 
         self.searchThread = SearchThread()
@@ -56,6 +59,9 @@ class ReplaceThread():
         self.searchItem             = None
         self.searchFound            = False
 
+        self.updateProgress(0, 0)
+        self.setupProgress(0, 0, self.getListItemCount(), True)
+
         self._startNextSearch()
 
 
@@ -64,6 +70,8 @@ class ReplaceThread():
         self.searchItem         = None
 
         self.tableRow += 1
+        self.updateProgress(0, self.tableRow)
+
         self.tableItem = self.getListItem(self.tableRow)
 
         #skip virtual addresses
@@ -77,6 +85,7 @@ class ReplaceThread():
             self.logMessage(f"Replaced {self.replaceItemCount} out of {self.searchItemCount} items in {elapsed_time:.2f} seconds")
 
             self.isRunning = False
+            self.setupProgress(0, 0, 0, False)
             self.finished()
             return
 

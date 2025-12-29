@@ -3,7 +3,7 @@ import os
 import argparse
 import lib.Constants as Constants
 from lib.Constants import DBType
-from PyQt6.QtWidgets import QMainWindow, QApplication, QWidget, QVBoxLayout, QListWidget, QTabWidget
+from PyQt6.QtWidgets import QMainWindow, QApplication, QWidget, QVBoxLayout, QListWidget, QTabWidget, QProgressBar
 from pya2l import DB
 from lib.UI.TABDatabase import TABDatabase
 from lib.UI.TABSearch import TABSearch
@@ -28,6 +28,9 @@ class MainWindow(QMainWindow):
         #set title
         self.setWindowTitle(Constants.APPLICATION_VERSION_STRING)
 
+        #main layout
+        mainLayoutBox = QVBoxLayout()
+
         #tabs
         self.listTab = TABList(self)
         self.dbTab = TABDatabase(self)
@@ -37,18 +40,22 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(TABSearch(self), "Search")
         self.tabs.addTab(self.listTab, "List")
 
+        mainLayoutBox.addWidget(self.tabs)
+
         #log box
         self.listViewLog = QListWidget()
         self.listViewLog.setFixedHeight(100)
-        layoutLog = QVBoxLayout()
-        layoutLog.addWidget(self.listViewLog)
 
-        layoutBoxAll = QVBoxLayout()
-        layoutBoxAll.addWidget(self.tabs)
-        layoutBoxAll.addLayout(layoutLog)
+        mainLayoutBox.addWidget(self.listViewLog)
+
+        #progress bar
+        self.progressBars = [QProgressBar(), QProgressBar()]
+        for index in range(len(self.progressBars)):
+            self.progressBars[index].setVisible(False)
+            mainLayoutBox.addWidget(self.progressBars[index])
 
         widget = QWidget()
-        widget.setLayout(layoutBoxAll)
+        widget.setLayout(mainLayoutBox)
         self.setGeometry(300, 300, 650, 600)
         self.setCentralWidget(widget)
         self.show()
@@ -73,6 +80,10 @@ class MainWindow(QMainWindow):
         self.listTab.addListItem(item, overwrite)
 
 
+    def getListItemCount(self):
+        return self.listTab.getListItemCount()
+
+
     def getListItem(self, row):
         return self.listTab.getListItem(row)
 
@@ -85,6 +96,16 @@ class MainWindow(QMainWindow):
         self.listTab.checkForDuplicates()
 
 
+    def updateProgress(self, index, current_value):
+        self.progressBars[index].setValue(current_value)
+
+
+    def setupProgress(self, index, min_value, max_value, isVisible):
+        self.progressBars[index].setMinimum(min_value)
+        self.progressBars[index].setMaximum(max_value)
+        self.progressBars[index].setVisible(isVisible)
+
+
     def checkAndLoadPendingCSV(self):
         """Check if DB is loaded and load pending CSV if present"""
         if self.pending_csv_file and self.a2lsession:
@@ -93,6 +114,7 @@ class MainWindow(QMainWindow):
             # Switch to List tab to show the imported data
             self.tabs.setCurrentIndex(2)
             self.pending_csv_file = None  # Clear after loading
+
 
 
 def print_usage():

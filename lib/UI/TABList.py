@@ -1,3 +1,4 @@
+import time
 import csv
 import lib.Constants as Constants
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QFileDialog, QTableWidget, QTableWidgetItem, QAbstractItemView, QCheckBox
@@ -51,6 +52,9 @@ class TABList(QWidget):
 
 
     def addListItem(self, item, overwrite=False):
+        if item is None:
+            return
+
         #ensure all required columns are present in item
         for column in Constants.LIST_DATA_COLUMNS_REQUIRED:
             if column not in item:
@@ -71,19 +75,17 @@ class TABList(QWidget):
         if existing_rows:
             # Update all existing rows with matching Address
             for target_row in existing_rows:
-                for column_index in range(self.itemsTable.columnCount()):
-                    column_str = Constants.LIST_DATA_COLUMNS[column_index]
-                    entryItem = QTableWidgetItem(item[column_str] if column_str in item else "")
-                    self.itemsTable.setItem(target_row, column_index, entryItem)
+                self._updateListItem(target_row, item)
 
         else:
             # Add new row
             self.itemsTable.setRowCount(self.itemsTable.rowCount() + 1)
             target_row = self.itemsTable.rowCount() - 1
-            for column_index in range(self.itemsTable.columnCount()):
-                column_str = Constants.LIST_DATA_COLUMNS[column_index]
-                entryItem = QTableWidgetItem(item[column_str] if column_str in item else "")
-                self.itemsTable.setItem(target_row, column_index, entryItem)
+            self._addListItem(target_row, item)
+
+
+    def getListItemCount(self):
+        return self.itemsTable.rowCount()
 
 
     def getListItem(self, row):
@@ -104,10 +106,7 @@ class TABList(QWidget):
             return
 
         if row in range(self.itemsTable.rowCount()):
-            for column_index in range(self.itemsTable.columnCount()):
-                column_str = Constants.LIST_DATA_COLUMNS[column_index]
-                if column_str in item:
-                    self.itemsTable.item(row, column_index).setText(item[column_str])
+            self._updateListItem(row, item)
 
 
     def ImportButtonClick(self, csvFilename=None):
@@ -119,11 +118,51 @@ class TABList(QWidget):
             if len(csvFilename[0]) == 0:
                 return
         else:
-            # If filename is a string, convert to tuple format expected by _loadCSV
+            # If filename is a string, convert to tuple format expected by function
             if isinstance(csvFilename, str):
                 csvFilename = (csvFilename, "")
         
-        self._loadCSV(overwrite, csvFilename)
+        self.parent.addLogEntry(f"Importing list: {csvFilename[0]}")
+        self.start_time = time.time()
+
+        try:
+            with open(csvFilename[0], "r", encoding="latin-1", newline='') as csvfile:
+                #get row count from csv file
+                csvreader = csv.DictReader(csvfile)
+                row_count = sum(1 for row in csvreader)
+
+                #rewind and load csv data
+                csvfile.seek(0)
+                csvreader = csv.DictReader(csvfile)
+
+                #show progress bar
+                self.parent.updateProgress(1, 0)
+                self.parent.setupProgress(1, 0, row_count, True)
+
+                #check for required columns
+                for column_str in Constants.LIST_DATA_COLUMNS_REQUIRED:
+                    if column_str not in csvreader.fieldnames:
+                        self.parent.addLogEntry(f"Import failed: does not contain {column_str}")
+                        return
+
+                #read rows
+                item_count = 0
+                for row in csvreader:
+                    self.addListItem(row, overwrite)
+
+                    #update progress bar
+                    item_count += 1
+                    self.parent.updateProgress(1, item_count)
+
+                self.checkForDuplicates()
+
+                self.parent.addLogEntry(f"Finished loading {item_count} items after {self._elapsedTime():.2f} seconds")
+
+        except Exception as e:
+            self.parent.addLogEntry(f"Failed after {self._elapsedTime():.2f} seconds - {e}")
+
+        #hide progress bar
+        self.parent.setupProgress(1, 0, 0, False)
 
 
     def ExportButtonClick(self):
@@ -131,10 +170,18 @@ class TABList(QWidget):
         if len(csvFilename[0]) == 0:
             return
 
+        self.parent.addLogEntry(f"Exporting list: {csvFilename[0]}")
+        self.start_time = time.time()
+
         try:
             with open(csvFilename[0], "w", encoding="latin-1", newline='') as csvfile:
                 csvwriter = csv.DictWriter(csvfile, fieldnames=Constants.LIST_DATA_COLUMNS)
 
+                #show progress bar
+                self.parent.updateProgress(1, 0)
+                self.parent.setupProgress(1, 0, self.itemsTable.rowCount(), True)
+
+                #add all rows to an array to be written
                 data = []
                 for row in range(self.itemsTable.rowCount()):
                     dataEntry = {}
@@ -145,15 +192,25 @@ class TABList(QWidget):
 
                     data.append(dataEntry)
 
+                    #update progress bar
+                    self.parent.updateProgress(1, row)
+
+                #write row data to file
                 csvwriter.writeheader()
                 csvwriter.writerows(data)
-                self.parent.addLogEntry(f"Export successful: {csvFilename[0]}")
+
+                self.parent.addLogEntry(f"Finished after {self._elapsedTime():.2f} seconds")
 
         except Exception as e:
-            self.parent.addLogEntry(f"Export failed: {csvFilename[0]} - {e}")
+            self.parent.addLogEntry(f"Failed after {self._elapsedTime():.2f} seconds - {e}")
+
+        #hide progress bar
+        self.parent.setupProgress(1, 0, 0, False)
 
 
     def RemoveButtonClick(self):
+        self.start_time = time.time()
+
         # Get a list of selected row indices
         selected_rows = set()
         for item in self.itemsTable.selectedItems():
@@ -162,11 +219,25 @@ class TABList(QWidget):
         # Convert to a list and sort in reverse order
         sorted_rows = sorted(list(selected_rows), reverse=True)
 
+        #show progress bar
+        self.parent.updateProgress(1, 0)
+        self.parent.setupProgress(1, 0, len(sorted_rows), True)
+
         # Delete rows
+        item_count = 0
         for row in sorted_rows:
             self.itemsTable.removeRow(row)
 
+            #update progress bar
+            item_count += 1
+            self.parent.updateProgress(1, item_count)
+
         self.checkForDuplicates()
+
+        #hide progress bar
+        self.parent.setupProgress(1, 0, 0, False)
+
+        self.parent.addLogEntry(f"Removed {item_count} items from list after {self._elapsedTime():.2f}")
 
 
     def checkForDuplicates(self):
@@ -208,22 +279,19 @@ class TABList(QWidget):
             self.itemsTable.item(row, column_index).setBackground(color)
 
 
-    def _loadCSV(self, overwrite, csvFilename):
-        try:
-            with open(csvFilename[0], "r", encoding="latin-1", newline='') as csvfile:
-                csvreader = csv.DictReader(csvfile)
+    def _addListItem(self, row, item):
+        for column_index in range(self.itemsTable.columnCount()):
+            column_str = Constants.LIST_DATA_COLUMNS[column_index]
+            entryItem = QTableWidgetItem(item[column_str] if column_str in item else "")
+            self.itemsTable.setItem(row, column_index, entryItem)
 
-                for column_str in Constants.LIST_DATA_COLUMNS_REQUIRED:
-                    if column_str not in csvreader.fieldnames:
-                        self.parent.addLogEntry(f"Import failed: {csvFilename[0]} does not contain {column_str}")
-                        return
 
-                for row in csvreader:
-                    self.addListItem(row, overwrite)
+    def _updateListItem(self, row, item):
+        for column_index in range(self.itemsTable.columnCount()):
+            column_str = Constants.LIST_DATA_COLUMNS[column_index]
+            if column_str in item:
+                self.itemsTable.item(row, column_index).setText(item[column_str])
 
-                self.checkForDuplicates()
 
-                self.parent.addLogEntry(f"Import successful: {csvFilename[0]}")
-
-        except Exception as e:
-            self.parent.addLogEntry(f"Import failed: {csvFilename[0]} - {e}")
+    def _elapsedTime(self):
+        return time.time() - self.start_time

@@ -13,6 +13,8 @@ class SearchThread(QThread):
     logMessage      = pyqtSignal(str)
     addItem         = pyqtSignal(dict)
     addItemsBatch   = pyqtSignal(list)  # New signal for batch updates
+    updateProgress  = pyqtSignal(int, int)
+    setupProgress   = pyqtSignal(int, int, int, bool)
 
 
     def __init__(self):
@@ -46,7 +48,10 @@ class SearchThread(QThread):
             self._runCSV()
 
         else:
-            self.logMessage.emit("Search: No database loaded")
+            self.logMessage.emit("Search: no database loaded")
+
+        #hide progress bar
+        self.setupProgress.emit(0, 0, 0, False)
 
 
     def _runCSV(self):
@@ -69,7 +74,7 @@ class SearchThread(QThread):
                 return
 
             if len(dict_type) == 0:
-                self.logMessage.emit("Search: No database loaded")
+                self.logMessage.emit("Search: no database loaded")
                 return
 
             if self.search_position == SearchPosition.START:
@@ -85,6 +90,10 @@ class SearchThread(QThread):
                 results_dict = {key: value for key, value in dict_type.items() if key.lower() == self.search_string.lower()}
 
             if results_dict is not None:
+                #show progress bar
+                self.updateProgress.emit(0, 0)
+                self.setupProgress.emit(0, 0, len(results_dict), True)
+
                 for key, value in results_dict.items():
                     item = results_dict[key]
 
@@ -114,12 +123,12 @@ class SearchThread(QThread):
                 self.logMessage.emit(f"Found {self.item_count} items in {self._elapsedTime():.2f} seconds")
 
         except Exception as e:
-            self.logMessage.emit(f"Search: error - {e} (after {self._elapsedTime():.2f} seconds)")
+            self.logMessage.emit(f"Failed after {self._elapsedTime():.2f} seconds - {e}")
 
 
     def _runA2L(self):
         if self.a2lsession is None:
-            self.logMessage.emit("Search: No database loaded")
+            self.logMessage.emit("Search: no database loaded")
             return
 
         try:
@@ -228,6 +237,10 @@ class SearchThread(QThread):
                     # Build a lookup dictionary for O(1) access
                     compu_methods = {cm.name: cm for cm in compu_method_list}
 
+                #show progress bar
+                self.updateProgress.emit(0, 0)
+                self.setupProgress.emit(0, 0, len(items), True)
+
             for item in items:
                 # For non-address searches, check if item has an address
                 # Address searches already filtered by address, so skip this check
@@ -244,8 +257,6 @@ class SearchThread(QThread):
                 if compuMethod is None:
                     # Skip if conversion not found
                     continue
-
-                compuMethod = compu_methods.get(item.conversion)
 
                 #build format string
                 try:
@@ -285,7 +296,7 @@ class SearchThread(QThread):
             self.logMessage.emit(f"Found {self.item_count} items in {self._elapsedTime():.2f} seconds")
 
         except Exception as e:
-            self.logMessage.emit(f"Search: error - {e} (after {self._elapsedTime():.2f} seconds)")
+            self.logMessage.emit(f"Failed after {self._elapsedTime():.2f} seconds - {e}")
 
 
     def _getEquation(self, item, compuMethod):
@@ -356,8 +367,12 @@ class SearchThread(QThread):
 
     def _emitBatch(self, batch_size):
         if len(self.results_batch) >= batch_size:
+            #update search results
             self.addItemsBatch.emit(self.results_batch)
             self.results_batch = []
+
+            #update progress bar
+            self.updateProgress.emit(0, self.item_count)
 
 
     def _elapsedTime(self):

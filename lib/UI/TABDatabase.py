@@ -13,12 +13,21 @@ class TABDatabase(QWidget):
         self.loadThread = LoadThread()
         self.loadThread.logMessage.connect(self.parent.addLogEntry)
         self.loadThread.finished.connect(self._onFinishedLoading)
+        self.loadThread.updateProgress.connect(self.parent.updateProgress)
+        self.loadThread.setupProgress.connect(self.parent.setupProgress)
 
         #Replace
-        self.replaceThread = ReplaceThread(self.parent.addLogEntry, self.parent.getListItem, self.parent.updateListItem, self._onFinishedReplace)
+        self.replaceThread = ReplaceThread(self.parent.addLogEntry,
+                                           self.parent.getListItemCount,
+                                           self.parent.getListItem,
+                                           self.parent.updateListItem,
+                                           self.parent.updateProgress,
+                                           self.parent.setupProgress,
+                                           self._onFinishedReplace
+        )
 
         #Export
-        self.exportThread = ExportThread(self.parent.addLogEntry, self._onFinishedExporting)
+        self.exportThread = ExportThread(self.parent.addLogEntry, self.parent.updateProgress, self.parent.setupProgress, self._onFinishedExporting)
 
         #Main layout box
         self.mainLayoutBox = QVBoxLayout()
@@ -72,6 +81,9 @@ class TABDatabase(QWidget):
 
 
     def LoadButtonClick(self):
+        if len(self.fileEditBox.text()) == 0:
+            return
+
         self._setUI(False)
 
         self.loadThread.filename = self.fileEditBox.text()
